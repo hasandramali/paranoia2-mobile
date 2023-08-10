@@ -29,7 +29,7 @@ jobs:
    - run: |
            sudo apt-get update
            sudo apt install build-essential gcc-multilib g++-multilib gcc g++ -y
-           cd android && ./build
+           cd android && ./build.sh
      env:
       ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
    - name: Upload artifacts
