@@ -21,14 +21,17 @@ jobs:
      with:
       distribution: 'zulu' # See 'Supported distributions' for available options
       java-version: '8'
+   - uses: nttld/setup-ndk@v1
+     id: setup-ndk
+     with:
+      ndk-version: r10e
+      add-to-path: false
    - run: |
            sudo apt-get update
-           sudo apt install build-essential gcc-multilib g++-multilib gcc g++ wget unzip -y
-           cd .. && wget https://dl.google.com/android/repository/android-ndk-r10e-linux-x86_64.zip
-           unzip android-ndk-r10e-linux-x86_64.zip && rm -rf android-ndk-r10e-linux-x86_64.zip
-           export ANDROID_NDK=/android-ndk-r10e/
-           cd /workspace/
+           sudo apt install build-essential gcc-multilib g++-multilib gcc g++ -y
            cd android && ./build
+     env:
+      ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
    - name: Upload artifacts
      uses: actions/upload-artifact@v3
      with:
