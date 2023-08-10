@@ -26,12 +26,13 @@ jobs:
      with:
       ndk-version: r10e
       add-to-path: false
+      
+   - env:
+      ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
    - run: |
            sudo apt-get update
            sudo apt install build-essential gcc-multilib g++-multilib gcc g++ -y
            cd android && ./build
-     env:
-      ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
    - name: Upload artifacts
      uses: actions/upload-artifact@v2
      with:
