@@ -369,4 +369,10 @@ typedef struct
 	short		s,t;		// s,t position on skin
 } mstudiotrivert_t;
 
+typedef struct
+{
+	vbomesh_t		*meshes;			// meshes per submodel
+	int		nummesh;			// mstudiomodel_t->nummesh
+} msubmodel_t;
+
 #endif//STUDIO_H
