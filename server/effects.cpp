@@ -3505,7 +3505,7 @@ void CDecLED :: Spawn( void )
 	else
 		SET_MODEL(ENT(pev), "sprites/decimal.spr");
          
-	// Smart Field System ©
+	// Smart Field System Â©
           if( !pev->renderamt ) pev->renderamt = 200; // light transparency
 	if( !pev->rendermode ) pev->rendermode = kRenderTransAdd;
 	if( !pev->frags ) pev->frags = Frames();
@@ -3872,7 +3872,7 @@ void CEnvStatic :: Spawn( void )
 	if( FBitSet( pev->spawnflags, SF_STATIC_SOLID ))
 	{
 		if( WorldPhysic->Initialized( ))
-			pev->solid = SOLID_CUSTOM;
+			pev->solid = SOLID_BBOX;
 		pev->movetype = MOVETYPE_NONE;
 		AutoSetSize();
 	}
