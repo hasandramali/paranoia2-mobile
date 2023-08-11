@@ -3851,11 +3851,10 @@ void CEnvModel :: SetSequence( void )
 
 class CEnvStatic : public CBaseEntity
 {
-	DECLARE_CLASS( CEnvStatic, CBaseEntity );
 public:
 	void Spawn( void );
 	void AutoSetSize( void );
-	virtual int ObjectCaps( void ) { return FCAP_IGNORE_PARENT; }
+	virtual int ObjectCaps( void ) { return 0; }
 	void SetObjectCollisionBox( void );
 };
 
@@ -3865,16 +3864,13 @@ void CEnvStatic :: Spawn( void )
 {
 	// don't allow to change scale
 	pev->scale = 1.0f;
-	pev->solid = SOLID_CUSTOM;
-	pev->movetype = MOVETYPE_NONE;
-	AutoSetSize();
 
-	PRECACHE_MODEL( GetModel() );
-	SET_MODEL( edict(), GetModel() );
+	PRECACHE_MODEL( (char *)STRING(pev->model) );
+	SET_MODEL( ENT(pev), STRING(pev->model) );
 
 	if( FBitSet( pev->spawnflags, SF_STATIC_SOLID ))
 	{
-		if( WorldPhysic->Initialized( ))
+		if( g_fPhysicInitialized )
 			pev->solid = SOLID_CUSTOM;
 		pev->movetype = MOVETYPE_NONE;
 		AutoSetSize();
@@ -3882,20 +3878,17 @@ void CEnvStatic :: Spawn( void )
 
 	if( FBitSet( pev->spawnflags, SF_STATIC_DROPTOFLOOR ))
 	{
-		Vector origin = GetLocalOrigin();
-		origin.z += 1;
-		SetLocalOrigin( origin );
-		UTIL_DropToFloor( this );
+		DROP_TO_FLOOR(ENT(pev));
 	}
 	else
 	{
-		UTIL_SetOrigin( this, GetLocalOrigin( ));
+		UTIL_SetOrigin( this, pev->origin );
 	}
 
 	if( FBitSet( pev->spawnflags, SF_STATIC_SOLID ))
 	{
-		m_pUserData = WorldPhysic->CreateStaticBodyFromEntity( this );
-		RelinkEntity( TRUE );
+		if( g_precache_meshes.value )
+			m_BodyMesh.StudioConstructMesh( this );
 	}
 	else
 	{
@@ -3907,7 +3900,7 @@ void CEnvStatic :: Spawn( void )
 void CEnvStatic :: SetObjectCollisionBox( void )
 {
 	// expand for rotation
-	TransformAABB( EntityToWorldTransform(), pev->mins, pev->maxs, pev->absmin, pev->absmax );
+	TransformAABB( matrix4x4( pev->origin, pev->angles ), pev->mins, pev->maxs, pev->absmin, pev->absmax );
 
 	pev->absmin.x -= 1;
 	pev->absmin.y -= 1;
@@ -3926,7 +3919,7 @@ void CEnvStatic :: AutoSetSize( void )
 	if( pstudiohdr == NULL )
 	{
 		UTIL_SetSize( pev, Vector( -10, -10, -10 ), Vector( 10, 10, 10 ));
-		ALERT( at_error, "env_model: unable to fetch model pointer!\n" );
+		ALERT( at_error, "env_static: unable to fetch model pointer!\n" );
 		return;
 	}
 
