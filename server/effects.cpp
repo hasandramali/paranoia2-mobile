@@ -3865,7 +3865,9 @@ void CEnvStatic :: Spawn( void )
 {
 	// don't allow to change scale
 	pev->scale = 1.0f;
-	pev->solid = SOLID_BBOX;
+	pev->solid = SOLID_CUSTOM;
+	pev->movetype = MOVETYPE_NONE;
+	AutoSetSize();
 
 	PRECACHE_MODEL( GetModel() );
 	SET_MODEL( edict(), GetModel() );
