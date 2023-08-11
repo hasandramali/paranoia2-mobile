@@ -3865,6 +3865,7 @@ void CEnvStatic :: Spawn( void )
 {
 	// don't allow to change scale
 	pev->scale = 1.0f;
+	pev->solid = SOLID_BBOX;
 
 	PRECACHE_MODEL( GetModel() );
 	SET_MODEL( edict(), GetModel() );
@@ -3872,7 +3873,7 @@ void CEnvStatic :: Spawn( void )
 	if( FBitSet( pev->spawnflags, SF_STATIC_SOLID ))
 	{
 		if( WorldPhysic->Initialized( ))
-			pev->solid = SOLID_BBOX;
+			pev->solid = SOLID_CUSTOM;
 		pev->movetype = MOVETYPE_NONE;
 		AutoSetSize();
 	}
