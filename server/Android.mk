@@ -34,6 +34,7 @@ SRCS += ./bmodels.cpp
 SRCS += ./monsters/bullsquid.cpp
 SRCS += ./buttons.cpp
 SRCS += ./cbase.cpp
+SRCS += ./meshdesc.cpp
 SRCS += ./client.cpp
 SRCS += ./combat.cpp
 SRCS += ../game_shared/common.cpp
