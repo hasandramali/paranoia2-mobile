@@ -112,6 +112,196 @@ void CMeshDesc :: FreeMesh( void )
 	m_mesh.numfacets = 0;
 }
 
+bool CMeshDesc :: StudioConstructMesh( CBaseEntity *pEnt )
+{
+	studiohdr_t *phdr = (studiohdr_t *)GET_MODEL_PTR( pEnt->edict() );
+
+	if( !phdr || phdr->numbones < 1 )
+	{
+		ALERT( at_error, "StudioConstructMesh: bad model header\n" );
+		return false;
+	}
+
+	float start_time = g_engfuncs.pfnTime();
+
+	// compute default pose for building mesh from
+	mstudioseqdesc_t *pseqdesc = (mstudioseqdesc_t *)((byte *)phdr + phdr->seqindex);
+	mstudioseqgroup_t *pseqgroup = (mstudioseqgroup_t *)((byte *)phdr + phdr->seqgroupindex) + pseqdesc->seqgroup;
+
+	// sanity check
+	if( pseqdesc->seqgroup != 0 )
+	{
+		ALERT( at_error, "StudioConstructMesh: bad sequence group (must be 0)\n" );
+		return false;
+	}
+
+	mstudioanim_t *panim = (mstudioanim_t *)((byte *)phdr + pseqgroup->data + pseqdesc->animindex);
+	mstudiobone_t *pbone = (mstudiobone_t *)((byte *)phdr + phdr->boneindex);
+	static Vector pos[MAXSTUDIOBONES];
+	static Vector4D q[MAXSTUDIOBONES];
+	int totalVertSize = 0;
+
+	for( int i = 0; i < phdr->numbones; i++, pbone++, panim++ ) 
+	{
+		StudioCalcBoneQuaterion( pbone, panim, q[i] );
+		StudioCalcBonePosition( pbone, panim, pos[i] );
+	}
+
+	pbone = (mstudiobone_t *)((byte *)phdr + phdr->boneindex);
+	matrix3x4	transform, bonematrix, bonetransform[MAXSTUDIOBONES];
+	transform = matrix3x4( pEnt->pev->origin, pEnt->pev->angles );
+
+	// compute bones for default anim
+	for( i = 0; i < phdr->numbones; i++ ) 
+	{
+		// initialize bonematrix
+		bonematrix = matrix3x4( pos[i], q[i] );
+
+		if( pbone[i].parent == -1 ) 
+			bonetransform[i] = transform.ConcatTransforms( bonematrix );
+		else bonetransform[i] = bonetransform[pbone[i].parent].ConcatTransforms( bonematrix );
+	}
+
+	// through all bodies to determine max vertices count
+	for( i = 0; i < phdr->numbodyparts; i++ )
+	{
+		mstudiobodyparts_t *pbodypart = (mstudiobodyparts_t *)((byte *)phdr + phdr->bodypartindex) + i;
+
+		int index = pEnt->pev->body / pbodypart->base;
+		index = index % pbodypart->nummodels;
+
+		mstudiomodel_t *psubmodel = (mstudiomodel_t *)((byte *)phdr + pbodypart->modelindex) + index;
+		totalVertSize += psubmodel->numverts;
+	}
+
+	Vector *verts = new Vector[totalVertSize * 8]; // allocate temporary vertices array
+	unsigned int *indices = new unsigned int[totalVertSize * 24];
+	int numVerts = 0, numElems = 0, numTris = 0;
+	Vector tmp, triangle[3];
+
+	for( int k = 0; k < phdr->numbodyparts; k++ )
+	{
+		mstudiobodyparts_t *pbodypart = (mstudiobodyparts_t *)((byte *)phdr + phdr->bodypartindex) + k;
+
+		int index = pEnt->pev->body / pbodypart->base;
+		index = index % pbodypart->nummodels;
+
+		mstudiomodel_t *psubmodel = (mstudiomodel_t *)((byte *)phdr + pbodypart->modelindex) + index;
+		Vector *pstudioverts = (Vector *)((byte *)phdr + psubmodel->vertindex);
+		Vector *m_verts = new Vector[psubmodel->numverts];
+		byte *pvertbone = ((byte *)phdr + psubmodel->vertinfoindex);
+
+		// setup all the vertices
+		for( i = 0; i < psubmodel->numverts; i++ )
+			m_verts[i] = bonetransform[pvertbone[i]].VectorTransform( pstudioverts[i] );
+
+		mstudiotexture_t *ptexture = (mstudiotexture_t *)((byte *)phdr + phdr->textureindex);
+		short *pskinref = (short *)((byte *)phdr + phdr->skinindex);
+
+		for( int j = 0; j < psubmodel->nummesh; j++ ) 
+		{
+			mstudiomesh_t *pmesh = (mstudiomesh_t *)((byte *)phdr + psubmodel->meshindex) + j;
+			short *ptricmds = (short *)((byte *)phdr + pmesh->triindex);
+
+			if( phdr->numtextures != 0 && phdr->textureindex != 0 )
+			{
+				// skip this mesh it's probably foliage or somewhat
+				if( ptexture[pskinref[pmesh->skinref]].flags & STUDIO_NF_TRANSPARENT )
+					continue;
+			}
+
+			while( i = *( ptricmds++ ))
+			{
+				int	vertexState = 0;
+				bool	tri_strip;
+
+				if( i < 0 )
+				{
+					tri_strip = false;
+					i = -i;
+				}
+				else
+					tri_strip = true;
+
+				numTris += (i - 2);
+
+				for( ; i > 0; i--, ptricmds += 4 )
+				{
+					// build in indices
+					if( vertexState++ < 3 )
+					{
+						indices[numElems++] = numVerts;
+					}
+					else if( tri_strip )
+					{
+						// flip triangles between clockwise and counter clockwise
+						if( vertexState & 1 )
+						{
+							// draw triangle [n-2 n-1 n]
+							indices[numElems++] = numVerts - 2;
+							indices[numElems++] = numVerts - 1;
+							indices[numElems++] = numVerts;
+						}
+						else
+						{
+							// draw triangle [n-1 n-2 n]
+							indices[numElems++] = numVerts - 1;
+							indices[numElems++] = numVerts - 2;
+							indices[numElems++] = numVerts;
+						}
+					}
+					else
+					{
+						// draw triangle fan [0 n-1 n]
+						indices[numElems++] = numVerts - ( vertexState - 1 );
+						indices[numElems++] = numVerts - 1;
+						indices[numElems++] = numVerts;
+					}
+
+					verts[numVerts++] = m_verts[ptricmds[0]];
+				}
+			}
+		}
+
+		delete [] m_verts;	// don't keep this because different submodels may have difference count of vertices
+	}
+
+	if( numTris != ( numElems / 3 ))
+		ALERT( at_error, "StudioConstructMesh: mismatch triangle count (%i should be %i)\n", (numElems / 3), numTris );
+
+	InitMeshBuild( STRING( pEnt->pev->model ), numTris );
+
+	for( i = 0; i < numElems; i += 3 )
+	{
+		// fill the triangle
+		triangle[0] = verts[indices[i+0]];
+		triangle[1] = verts[indices[i+1]];
+		triangle[2] = verts[indices[i+2]];
+
+		// add it to mesh
+		AddMeshTrinagle( triangle );
+	}
+
+	delete [] verts;
+	delete [] indices;
+
+	if( !FinishMeshBuild( ))
+	{
+		ALERT( at_error, "StudioConstructMesh: failed to build mesh from %s\n", STRING( pEnt->pev->model ));
+		return false;
+	}
+
+	// position are changed. Cache new values and rebuild mesh
+	m_origin = pEnt->pev->origin;
+	m_angles = pEnt->pev->angles;
+#if 1
+	// g-cont. i'm leave this for debug
+	ALERT( at_aiconsole, "%s: build time %g secs, size %i k\n", m_debugName, g_engfuncs.pfnTime() - start_time, ( mesh_size / 1024 ));
+#endif
+	// done
+	return true;
+}
+
 bool CMeshDesc :: InitMeshBuild( const char *debug_name, int numTriangles )
 {
 	if( numTriangles <= 0 )
