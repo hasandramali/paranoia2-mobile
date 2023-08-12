@@ -63,6 +63,7 @@ public:
 	bool InitMeshBuild( const char *debug_name, int numTrinagles ); 
 	bool AddMeshTrinagle( const Vector triangle[3] );
 	bool FinishMeshBuild( void );
+        bool StudioConstructMesh( CBaseEntity *pEnt );
 	void FreeMesh( void );
 
 	// linked list operations
