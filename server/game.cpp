@@ -55,6 +55,7 @@ cvar_t	*g_debugdraw = NULL;
 cvar_t	*g_physdebug = NULL;
 cvar_t	*p_speeds = NULL;
 cvar_t	*g_allow_physx = NULL;
+cvar_t	g_precache_meshes  = { "sv_precache_meshes","1", FCVAR_ARCHIVE };
 
 //CVARS FOR SKILL LEVEL SETTINGS
 // Agrunt
@@ -507,7 +508,7 @@ void GameDLLInit( void )
 	g_engfuncs.pfnAddServerCommand( "dump_strings", DumpStrings_f );
 #endif
 	CVAR_REGISTER (&displaysoundlist);
-
+        CVAR_REGISTER (&g_precache_meshes);
 	CVAR_REGISTER (&teamplay);
 	CVAR_REGISTER (&fraglimit);
 	CVAR_REGISTER (&timelimit);
