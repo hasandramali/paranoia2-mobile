@@ -3887,8 +3887,7 @@ void CEnvStatic :: Spawn( void )
 
 	if( FBitSet( pev->spawnflags, SF_STATIC_SOLID ))
 	{
-		if( g_precache_meshes.value )
-			m_BodyMesh.StudioConstructMesh( this );
+		m_BodyMesh.StudioConstructMesh( this );
 	}
 	else
 	{
